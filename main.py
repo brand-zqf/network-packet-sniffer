@@ -17,6 +17,8 @@ from PySide6.QtWidgets import QMainWindow
 
 from gui import ui_main
 
+MAXSIZE = 1024
+
 
 class Signal(QtCore.QObject):
     recv = QtCore.Signal()
@@ -44,6 +46,46 @@ class MainWindow(QMainWindow):
         self.ui.packetTable.cellPressed.connect(self.update_content)
         self.ui.treeWidget.itemPressed.connect(self.update_layer_content)
         self.signal.recv.connect(self.update_packet_list)
+
+    def update_packet_list(self):
+        packet = self.queue.get(False)
+        if not packet:
+            return
+        if self.ui.packetTable.rowCount() >= MAXSIZE:
+            self.ui.packetTable.removeRow(0)
+        row = self.ui.packetTable.rowCount()
+        self.ui.packetTable.insertRow(row)
+        # No.
+        self.counter += 1
+        self.ui.packetTable.setItem(row, 0, QTItem(str(self.counter)))
+        # Time
+        elapse = time.time() - self.start_time
+        self.ui.packetTable.setItem(row, 1, QTItem(f"{elapse:2f}"))
+        # source
+        if IP in packet:
+            src = packet[IP].src
+            dst = packet[IP].dst
+        else:
+            src = packet.src
+            dst = packet.dst
+        self.ui.packetTable.setItem(row, 2, QTItem(src))
+        # destination
+        self.ui.packetTable.setItem(row, 3, QTItem(dst))
+        # protocol
+        layer = None
+        for var in self.get_packet_layers(packet):
+            if not isinstance(var, (Padding, Raw)):
+                layer = var
+        protocol = layer.name
+        self.ui.packetTable.setItem(row, 4, QTItem(str(protocol)))
+        # length
+        length = f"{len(packet)}"
+        self.ui.packetTable.setItem(row, 5, QTItem(length))
+        # info
+        info = str(packet.summary())
+        item = QTItem(info)
+        item.packet = packet
+        self.ui.packetTable.setItem(row, 6, item)
 
 
 def main():
