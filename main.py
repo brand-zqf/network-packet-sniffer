@@ -87,6 +87,37 @@ class MainWindow(QMainWindow):
         item.packet = packet
         self.ui.packetTable.setItem(row, 6, item)
 
+    def update_layer_content(self, item):
+        if not hasattr(item, 'layer'):
+            return
+        layer = item.layer
+        self.ui.contentEdit.setText(hexdump(layer, dump=True))
+
+    def update_content(self, x):
+        item = self.ui.packetTable.item(x, 6)
+        if not hasattr(item, 'packet'):
+            return
+        packet = item.packet
+        self.ui.contentEdit.setText(hexdump(packet, dump=True))
+        self.ui.treeWidget.clear()
+        for layer in self.get_packet_layers(packet):
+            item = QRItem(self.ui.treeWidget)
+            item.layer = layer
+            item.setText(0, layer.name)
+            for name, value in layer.fields.items():
+                child = QRItem(item)
+                child.setText(0, f"{name}: {value}")
+
+    @staticmethod
+    def get_packet_layers(packet):
+        counter = 0
+        while True:
+            layer = packet.getlayer(counter)
+            if layer is None:
+                break
+            yield layer
+            counter += 1
+
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
