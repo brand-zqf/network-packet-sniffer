@@ -37,6 +37,43 @@ class MainWindow(QMainWindow):
         self.queue = Queue()
         self.init_interfaces()
 
+    def start_click(self):
+        if self.sniffer:
+            self.sniffer.stop()
+            self.sniffer = None
+            self.ui.startButton.setText("Start")
+            self.ui.interfaceBox.setEnabled(True)
+            self.ui.filterEdit.setEnabled(True)
+            return
+        exp = self.ui.filterEdit.text()
+        iface = self.get_iface()
+        self.sniffer = cap.AsyncSniffer(
+            iface=iface,
+            prn=self.sniff_action,
+            filter=exp,
+        )
+        self.sniffer.start()
+        self.counter = 0
+        self.start_time = time.time()
+        self.ui.startButton.setText("Stop")
+        self.ui.interfaceBox.setEnabled(False)
+        self.ui.filterEdit.setEnabled(False)
+        self.ui.packetTable.clearContents()
+        self.ui.packetTable.setRowCount(0)
+        self.ui.treeWidget.clear()
+        self.ui.contentEdit.clear()
+
+    def get_iface(self):
+        index = self.ui.interfaceBox.currentIndex()
+        iface = cap.get_working_ifaces()[index]
+        return iface
+
+    def sniff_action(self, packet):
+        if not self.sniffer:
+            return
+        self.queue.put(packet)
+        self.signal.recv.emit()
+
     def init_interfaces(self):
         for interface in cap.get_working_ifaces():
             self.ui.interfaceBox.addItem(interface.name)
