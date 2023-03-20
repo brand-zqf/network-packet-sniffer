@@ -37,6 +37,34 @@ class MainWindow(QMainWindow):
         self.queue = Queue()
         self.init_interfaces()
 
+    def init_interfaces(self):
+        for interface in cap.get_working_ifaces():
+            self.ui.interfaceBox.addItem(interface.name)
+        self.ui.filterEdit.editingFinished.connect(self.validate_filter)
+        self.ui.startButton.clicked.connect(self.start_click)
+        self.ui.packetTable.horizontalHeader().setStretchLastSection(True)
+        self.ui.packetTable.cellPressed.connect(self.update_content)
+        self.ui.treeWidget.itemPressed.connect(self.update_layer_content)
+        self.signal.recv.connect(self.update_packet_list)
+
+    def validate_filter(self):
+        exp = self.ui.filterEdit.text().strip()
+        if not exp:
+            self.ui.filterEdit.setStyleSheet('')
+            self.ui.startButton.setEnabled(True)
+            return
+
+        try:
+            compile_filter(filter_exp=exp)
+            # 输入框背景变绿
+            self.ui.filterEdit.setStyleSheet('QLineEdit { background-color: rgb(33, 186, 69);}')
+            self.ui.startButton.setEnabled(True)
+        except Scapy_Exception:
+            # 将输入框背景变红
+            self.ui.startButton.setEnabled(False)
+            self.ui.filterEdit.setStyleSheet('QLineEdit { background-color: rgb(219, 40, 40);}')
+            return
+
     def start_click(self):
         if self.sniffer:
             self.sniffer.stop()
@@ -73,16 +101,6 @@ class MainWindow(QMainWindow):
             return
         self.queue.put(packet)
         self.signal.recv.emit()
-
-    def init_interfaces(self):
-        for interface in cap.get_working_ifaces():
-            self.ui.interfaceBox.addItem(interface.name)
-        self.ui.filterEdit.editingFinished.connect(self.validate_filter)
-        self.ui.startButton.clicked.connect(self.start_click)
-        self.ui.packetTable.horizontalHeader().setStretchLastSection(True)
-        self.ui.packetTable.cellPressed.connect(self.update_content)
-        self.ui.treeWidget.itemPressed.connect(self.update_layer_content)
-        self.signal.recv.connect(self.update_packet_list)
 
     def update_packet_list(self):
         packet = self.queue.get(False)
